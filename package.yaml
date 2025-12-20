@@ -1,0 +1,19 @@
+name: haskell-minigames
+version: 0.1.0.0
+
+dependencies:
+  - base >=4.7 && <5
+  - threepenny-gui
+
+library:
+  source-dirs: src
+  dependencies:
+    - threepenny-gui
+
+executables:
+  haskell-minigames-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options: -threaded
+    dependencies:
+      - haskell-minigames
