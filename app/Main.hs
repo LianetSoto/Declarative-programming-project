@@ -10,6 +10,7 @@ import Control.Monad (void)
 import Core.Types
 import Menu.MainMenu
 import TicTacToe.View
+import Nonogram.View
 
 main :: IO ()
 main = startGUI defaultConfig setup
@@ -32,7 +33,7 @@ setup window = do
           Menu      -> menuView window screenRef render
           TicTacToe -> ticTacToeView window screenRef render
           -- Minesweeper -> minesweeperView window screenRef render
-          -- Nonogram    -> nonogramView window screenRef render
+          Nonogram    -> nonogramView window screenRef render
 
   -- Render inicial
   render

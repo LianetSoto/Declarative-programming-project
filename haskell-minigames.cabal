@@ -14,6 +14,9 @@ library
   exposed-modules:
       Core.Types
       Menu.MainMenu
+      Nonogram.Game
+      Nonogram.Types
+      Nonogram.View
       TicTacToe.AI
       TicTacToe.Computer
       TicTacToe.Game
