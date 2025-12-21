@@ -13,7 +13,10 @@ import TicTacToe.View
 import MinesWeeper.View
 
 main :: IO ()
-main = startGUI defaultConfig setup
+main = do
+  let config = defaultConfig
+        { jsStatic = Just "static" }  
+  startGUI config setup
 
 setup :: Window -> UI ()
 setup window = do
