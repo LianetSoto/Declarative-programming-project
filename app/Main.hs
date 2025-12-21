@@ -11,9 +11,13 @@ import Core.Types
 import Menu.MainMenu
 import TicTacToe.View
 import Nonogram.View
+import MinesWeeper.View
 
 main :: IO ()
-main = startGUI defaultConfig setup
+main = do
+  let config = defaultConfig
+        { jsStatic = Just "static" }  
+  startGUI config setup
 
 setup :: Window -> UI ()
 setup window = do
@@ -34,6 +38,8 @@ setup window = do
           TicTacToe -> ticTacToeView window screenRef render
           -- Minesweeper -> minesweeperView window screenRef render
           Nonogram    -> nonogramView window screenRef render
+          Minesweeper -> minesweeperView window screenRef render
+          -- Nonogram    -> nonogramView window screenRef render
 
   -- Render inicial
   render

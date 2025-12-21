@@ -6,6 +6,10 @@ dependencies:
   - threepenny-gui
   - aeson
   - bytestring 
+  - array
+  - random
+  - containers
+  - mtl
 
 library:
   source-dirs: src
