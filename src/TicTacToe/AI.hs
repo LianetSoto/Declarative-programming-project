@@ -36,13 +36,13 @@ minimax board depth isMaximizing player
       let moves = emptyCells board
           scores = map (\idx -> 
             minimax (placeMove board idx player) (depth + 1) False player) moves
-      in maximum scores  -- ¡Simplificado! Siempre hay movimientos si no es terminal
+      in maximum scores 
   | otherwise =  -- Minimizando
       let opponent = switchPlayer player
           moves = emptyCells board
           scores = map (\idx -> 
             minimax (placeMove board idx opponent) (depth + 1) True player) moves
-      in minimum scores  -- ¡Simplificado! Siempre hay movimientos si no es terminal
+      in minimum scores 
 
 -- Función auxiliar para comparar tuplas por el primer elemento
 compareScore :: (Int, Int) -> (Int, Int) -> Ordering
@@ -56,7 +56,7 @@ maximumByScore xs = foldl1 selectBest xs
     selectBest (score1, idx1) (score2, idx2)
       | score1 > score2 = (score1, idx1)
       | score1 < score2 = (score2, idx2)
-      | otherwise = (score1, idx1)  -- En caso de empate, quedarse con el primero
+      | otherwise = (score1, idx1) 
 
 -- Encontrar el mejor movimiento usando Minimax
 findBestMove :: Board -> Player -> Maybe Int
@@ -68,7 +68,7 @@ findBestMove board player
     
     evaluateMove idx = 
       let newBoard = placeMove board idx player
-          score = minimax newBoard 0 False player  -- False porque después de nuestro movimiento, es turno del oponente
+          score = minimax newBoard 0 False player  
       in (score, idx)
     
     evaluatedMoves = map evaluateMove availableMoves
