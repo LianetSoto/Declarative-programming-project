@@ -9,11 +9,17 @@ version:        0.1.0.0
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
+data-files:
+    data/puzzles.json
 
 library
   exposed-modules:
       Core.Types
       Menu.MainMenu
+      Nonogram.Game
+      Nonogram.Puzzles
+      Nonogram.Types
+      Nonogram.View
       MinesWeeper.Board
       MinesWeeper.Logic
       MinesWeeper.Types
@@ -28,8 +34,10 @@ library
   hs-source-dirs:
       src
   build-depends:
-      array
+      aeson
     , base >=4.7 && <5
+    , bytestring
+    , array
     , containers
     , mtl
     , random
@@ -44,8 +52,10 @@ executable haskell-minigames-exe
       app
   ghc-options: -threaded
   build-depends:
-      array
+      aeson
     , base >=4.7 && <5
+    , bytestring
+    , array
     , containers
     , haskell-minigames
     , mtl

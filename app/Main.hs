@@ -10,6 +10,7 @@ import Control.Monad (void)
 import Core.Types
 import Menu.MainMenu
 import TicTacToe.View
+import Nonogram.View
 import MinesWeeper.View
 
 main :: IO ()
@@ -35,6 +36,8 @@ setup window = do
         case screen of
           Menu      -> menuView window screenRef render
           TicTacToe -> ticTacToeView window screenRef render
+          -- Minesweeper -> minesweeperView window screenRef render
+          Nonogram    -> nonogramView window screenRef render
           Minesweeper -> minesweeperView window screenRef render
           -- Nonogram    -> nonogramView window screenRef render
 

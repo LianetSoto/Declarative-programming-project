@@ -4,6 +4,8 @@ version: 0.1.0.0
 dependencies:
   - base >=4.7 && <5
   - threepenny-gui
+  - aeson
+  - bytestring 
   - array
   - random
   - containers
@@ -13,7 +15,12 @@ library:
   source-dirs: src
   dependencies:
     - threepenny-gui
+    - aeson
+    - bytestring
 
+data-files:
+  - data/*.json
+  
 executables:
   haskell-minigames-exe:
     main: Main.hs
