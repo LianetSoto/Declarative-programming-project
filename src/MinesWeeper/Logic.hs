@@ -23,7 +23,9 @@ processReveal :: Position -> Game -> Game
 processReveal pos game@Game{gameBoard = board} =
     let cell = board ! pos
     in case cellContent cell of
-        Mine -> game { gameState = Lost pos }  -- ¡Perdiste!
+        Mine ->
+            let gameRevealed = revealAllMines game
+            in gameRevealed { gameState = Lost pos }
         _    -> floodReveal pos game
 
 -- ALGORITMO DE FLOOD FILL (revelación en cascada)
@@ -57,27 +59,24 @@ floodReveal startPos game =
         
         -- Iniciar flood fill desde la posición
         newBoard = doFloodFill [startPos] board
-        
+
         -- Verificar si ganó
         hasWon = checkWinCondition newBoard (mineCount game)
-        
-        -- Actualizar estado del juego
-        newState = if hasWon then Won else Playing
-        
-    in game 
-        { gameBoard = newBoard
-        , gameState = newState
-        }
+
+    in if hasWon
+        then
+            let gameWon = game { gameBoard = newBoard, gameState = Won }
+            in revealAllMines gameWon
+        else
+            game { gameBoard = newBoard, gameState = Playing }
 
 -- Verificar condición de victoria
 checkWinCondition :: Board -> Int -> Bool
 checkWinCondition board totalMines =
     let cells = elems board
-        hiddenCells = filter (\c -> cellState c == Hidden) cells
-        flaggedMines = filter (\c -> 
-            cellState c == Flagged && cellContent c == Mine) cells
-    in length hiddenCells == totalMines && 
-       length flaggedMines == totalMines
+        totalCells = length cells
+        revealedNonMines = length $ filter (\c -> cellContent c /= Mine && cellState c == Revealed) cells
+    in revealedNonMines == (totalCells - totalMines)
 
 -- Alternar bandera en una celda
 toggleFlag :: Position -> Game -> Game

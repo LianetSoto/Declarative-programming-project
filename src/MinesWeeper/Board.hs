@@ -80,7 +80,7 @@ initializeGame diff seed = do
     -- Usar semilla si se proporciona, aleatorio si no
     randomGen <- case seed of
         Just s  -> return $ mkStdGen s
-        Nothing -> getStdGen
+        Nothing -> newStdGen
     
     let (minePositions, _) = 
             generateMinePositions size mines randomGen
