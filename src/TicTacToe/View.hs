@@ -5,7 +5,7 @@ module TicTacToe.View where
 import Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny as UI
 import Data.IORef
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Concurrent (threadDelay)
 import qualified Data.Maybe as Maybe
 
@@ -14,49 +14,101 @@ import TicTacToe.Types
 import TicTacToe.Game
 import TicTacToe.Computer
 
---------------------------------------------------
--- Vista principal del minijuego
---------------------------------------------------
-
 ticTacToeView :: Window -> IORef Screen -> UI () -> UI ()
 ticTacToeView window screenRef renderApp = do
   void $ return window # set title "Tic Tac Toe"
 
-  -- Estado del juego
+  -- Game state
   state <- liftIO $ newIORef initialState
 
-  ------------------------------------------------
-  -- UI Elements
-  ------------------------------------------------
-
+ -- UI Elements
   backButton <- UI.button
-    # set UI.text "← Volver al menú"
-    # set UI.class_ "back-button"
+    # set UI.text "← Back"
 
-  title <- UI.h1
-    # set UI.text "Tic Tac Toe"
-    # set UI.class_ "title"
-
-  info <- UI.div
-    # set UI.class_ "info"
-    # set UI.text "Turno: X"
+  turnInfo <- UI.div
+    # set UI.text "Turn: X"
 
   modeButton <- UI.button
-    # set UI.text "Modo: Humano vs Humano"
-    # set UI.class_ "mode-button"
+    # set UI.text "Mode: Human vs Human"
 
   resetButton <- UI.button
-    # set UI.text "Nueva Partida"
-    # set UI.class_ "reset-button"
+    # set UI.text "New Game"
 
-  buttons <- mapM (\_ ->
-      UI.button # set UI.text "" # set UI.class_ "cell"
-    ) [1..9]
+  cells <- mapM (\_ -> UI.div # set UI.class_ "cell") [1..9]
 
-  ------------------------------------------------
-  -- Render del juego
-  ------------------------------------------------
+ -- Styles
+  let containerStyle =
+        [ ("background", "#000000")
+        , ("padding", "50px")
+        , ("border-radius", "25px")
+        , ("box-shadow", "0 0 50px #00ffff, 0 0 80px #ff00ff")
+        , ("display", "flex")
+        , ("flex-direction", "column")
+        , ("align-items", "center")
+        , ("justify-content", "center")
+        , ("min-width", "350px")
+        ]
 
+      infoStyle =
+        [ ("color", "#00ffff")
+        , ("margin-bottom", "20px")
+        , ("font-size", "18px")
+        , ("text-shadow", "0 0 10px #00ffff")
+        , ("font-family", "'Orbitron', sans-serif")
+        ]
+
+      buttonStyle =
+        [ ("background", "transparent")
+        , ("color", "#00ffff")
+        , ("border", "2px solid #00ffff")
+        , ("padding", "10px 30px")
+        , ("margin", "10px")
+        , ("cursor", "pointer")
+        , ("border-radius", "12px")
+        , ("font-family", "'Orbitron', sans-serif")
+        , ("font-size", "16px")
+        , ("text-shadow", "0 0 5px #00ffff")
+        , ("box-shadow", "0 0 15px #00ffff")
+        ]
+
+      cellStyle =
+        [ ("width", "70px")
+        , ("height", "70px")
+        , ("margin", "5px")
+        , ("font-size", "32px")
+        , ("font-weight", "bold")
+        , ("border-radius", "12px")
+        , ("cursor", "pointer")
+        , ("background", "#111111")
+        , ("text-align", "center")
+        , ("box-shadow", "0 0 15px #00ffff")
+        , ("user-select", "none")
+        , ("position", "relative")
+        , ("display", "flex")
+        , ("align-items", "center")
+        , ("justify-content", "center")
+        ]
+
+      boardStyle =
+        [ ("display", "flex")
+        , ("flex-direction", "column")
+        , ("align-items", "center")
+        ]
+
+      rowStyle =
+        [ ("display", "flex")
+        , ("flex-direction", "row")
+        , ("justify-content", "center")
+        ]
+
+  -- Apply styles
+  mapM_ (\c -> element c # set UI.style cellStyle) cells
+  element turnInfo    # set UI.style infoStyle
+  element modeButton  # set UI.style buttonStyle
+  element resetButton # set UI.style buttonStyle
+  element backButton  # set UI.style buttonStyle
+
+ -- Game Rendering
   let renderGame :: UI ()
       renderGame = do
         gs <- liftIO $ readIORef state
@@ -70,53 +122,46 @@ ticTacToeView window screenRef renderApp = do
               case win of
                 Just p ->
                   if Maybe.isJust (checkWinner boardState)
-                    then "¡Ganador: " ++ show p ++ "!"
-                    else "¡Empate!"
-                Nothing -> "Turno: " ++ show current
+                    then "Winner: " ++ show p
+                    else "Draw!"
+                Nothing -> "Turn: " ++ show current
 
-        element info # set UI.text message
+        element turnInfo # set UI.text message
 
         element modeButton # set UI.text
           (if mode == HumanVsHuman
-            then "Modo: Humano vs Humano"
-            else "Modo: Humano vs Computadora")
+            then "Mode: Human vs Human"
+            else "Mode: Human vs Computer")
 
-        mapM_ (\(btn, cell) -> do
+        mapM_ (\(cellDiv, cell) -> do
             let cellText = showCell cell
                 cellColor = case cell of
-                  Just X -> "red"
-                  Just O -> "blue"
-                  _      -> "black"
+                  Just X -> "#ff0000"
+                  Just O -> "#ff4000ff"
+                  Nothing -> "#ffaa00"
+                glow = case cell of
+                  Just X -> "0 0 20px #ff0000"
+                  Just O -> "0 0 20px #ffaa00"
+                  Nothing -> "0 0 15px #00ffff"
 
-            element btn
+            element cellDiv
               # set UI.text cellText
-              # set UI.style [("color", cellColor)]
-              # set UI.enabled
-                  ( Maybe.isNothing win &&
-                    (mode == HumanVsHuman || current == X)
-                  )
-          ) (zip buttons boardState)
-
-        element resetButton # set UI.style
-          [("background-color",
-            if Maybe.isJust win then "#4CAF50" else "#f44336")]
+              # set UI.style [("color", cellColor), ("box-shadow", glow)]
+          ) (zip cells boardState)
 
         when (isComputersTurn gs && Maybe.isNothing win) $ do
           liftIO $ threadDelay 400000
           liftIO $ modifyIORef state makeComputerMove
           renderGame
 
-  ------------------------------------------------
-  -- Eventos
-  ------------------------------------------------
-
-  mapM_ (\(i, btn) ->
-      on UI.click btn $ \_ -> do
+ -- Events
+  mapM_ (\(i, cellDiv) ->
+      on UI.click cellDiv $ \_ -> do
         gs <- liftIO $ readIORef state
         when (gameMode gs == HumanVsHuman || currentPlayer gs == X) $ do
           liftIO $ modifyIORef state (makeMove i)
           renderGame
-    ) (zip [0..] buttons)
+    ) (zip [0..] cells)
 
   on UI.click modeButton $ \_ -> do
     liftIO $ modifyIORef state
@@ -131,46 +176,34 @@ ticTacToeView window screenRef renderApp = do
     liftIO $ writeIORef screenRef Menu
     renderApp
 
-  ------------------------------------------------
-  -- Layout
-  ------------------------------------------------
+ -- Layout
+  boardRows <- mapM (\i -> do
+      let rowCells = take 3 (drop (i*3) cells)
+      UI.div # set UI.style rowStyle #+ map pure rowCells
+    ) [0..2]
 
-  let rowsUI =
-        [ map pure (take 3 buttons)
-        , map pure (take 3 (drop 3 buttons))
-        , map pure (take 3 (drop 6 buttons))
-        ]
+  boardUI <- UI.div # set UI.style boardStyle #+ map pure boardRows
 
-  boardUI <- UI.grid rowsUI # set UI.class_ "board"
+  buttonsContainer <- UI.div
+        # set UI.style [("display", "flex")
+                       ,("flex-direction", "column")
+                       ,("align-items", "center")
+                       ,("margin-top", "20px")]
+        #+ [pure modeButton, pure resetButton, pure backButton]
 
-  controls <- UI.div # set UI.class_ "controls"
-    #+ [ pure modeButton
-       , pure resetButton
-       ]
+  container <- UI.div # set UI.style containerStyle
+        #+ [ pure turnInfo
+           , pure boardUI
+           , pure buttonsContainer
+           ]
 
-  container <- UI.div # set UI.class_ "container"
-    #+ [ pure backButton
-       , pure title
-       , pure info
-       , pure boardUI
-       , pure controls
-       ]
-
-  ------------------------------------------------
-  -- Inicial
-  ------------------------------------------------
-
+ -- Initial Render
   renderGame
   void $ getBody window #+ [pure container]
 
---------------------------------------------------
--- Auxiliares
---------------------------------------------------
+-- Helpers
 
 showCell :: Cell -> String
 showCell Nothing  = ""
 showCell (Just X) = "X"
 showCell (Just O) = "O"
-
-when :: Monad m => Bool -> m () -> m ()
-when cond action = if cond then action else return ()
