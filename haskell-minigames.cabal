@@ -9,12 +9,15 @@ version:        0.1.0.0
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
+data-files:
+    data/puzzles.json
 
 library
   exposed-modules:
       Core.Types
       Menu.MainMenu
       Nonogram.Game
+      Nonogram.Puzzles
       Nonogram.Types
       Nonogram.View
       TicTacToe.AI
@@ -27,7 +30,9 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
+    , bytestring
     , threepenny-gui
   default-language: Haskell2010
 
@@ -39,7 +44,9 @@ executable haskell-minigames-exe
       app
   ghc-options: -threaded
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
+    , bytestring
     , haskell-minigames
     , threepenny-gui
   default-language: Haskell2010

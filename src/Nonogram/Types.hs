@@ -1,23 +1,29 @@
 module Nonogram.Types where
 
 -- Tipos para Nonogramas (Picross)
--- Celda: Unknown = no marcada; Filled = marcada como rellena; MarkedEmpty = marcada como vacía (X)
-data Cell = Unknown | Filled | MarkedEmpty
+-- Cell:
+--   Unknown      = no marcada
+--   Filled       = marcada como rellena (usuario o revelada)
+--   MarkedEmpty  = marcada como vacía por el usuario (X)
+--   LockedEmpty  = marcada automáticamente como vacía (X bloqueada, no se puede cambiar)
+data Cell = Unknown | Filled | MarkedEmpty | LockedEmpty
   deriving (Eq, Show)
 
 type Position = (Int, Int) -- (fila, columna), 1-based
 type Size = (Int, Int)
 
 -- Pistas: listas de enteros por fila/columna
--- Añadimos puzzleSolution :: [[Bool]] donde True = celda que debe estar rellena
+-- puzzleSolution :: [[Bool]] donde True = celda que debe estar rellena
+-- puzzleDifficulty: "easy" | "medium" | "hard"
 data Puzzle = Puzzle
   { puzzleRows     :: [[Int]]
   , puzzleCols     :: [[Int]]
   , puzzleSize     :: Size
   , puzzleSolution :: [[Bool]]
+  , puzzleDifficulty :: String
   } deriving (Show)
 
-data GameState = Playing | Won
+data GameState = Playing | Won | Lost
   deriving (Eq, Show)
 
 data Game = Game
@@ -25,18 +31,19 @@ data Game = Game
   , gamePuzzle :: Puzzle
   , gameState  :: GameState
   , startTime  :: Maybe Int
+  , errorCount :: Int        -- errores cometidos por el jugador
+  , maxErrors  :: Int        -- máximo de errores permitidos (p. ej. 3)
   } deriving (Show)
 
--- Algunos puzzles de ejemplo
--- 5x5 "cruz" (solución y pistas consistentes)
+-- Algunos puzzles embebidos (fallback)
 samplePuzzle5 :: Puzzle
 samplePuzzle5 = Puzzle
   { puzzleRows =
-      [ [1]     -- 00100
-      , [3]     -- 01110
-      , [5]     -- 11111
-      , [3]     -- 01110
-      , [1]     -- 00100
+      [ [1]
+      , [3]
+      , [5]
+      , [3]
+      , [1]
       ]
   , puzzleCols =
       [ [1]
@@ -53,9 +60,9 @@ samplePuzzle5 = Puzzle
       , [False, True , True , True , False]
       , [False, False, True , False, False]
       ]
+  , puzzleDifficulty = "easy"
   }
 
--- 10x10 ejemplo simple (simétrico). Asegúrate de que pistas coinciden con solución.
 samplePuzzle10 :: Puzzle
 samplePuzzle10 = Puzzle
   { puzzleRows =
@@ -84,7 +91,6 @@ samplePuzzle10 = Puzzle
       ]
   , puzzleSize = (10,10)
   , puzzleSolution =
-      -- Aquí un patrón simétrico simple; puedes sustituir por cualquier otro que cumpla las pistas
       [ [False,False,False,False,True ,True ,False,False,False,False]
       , [False,False,False,True ,False,False,True ,False,False,False]
       , [False,False,True ,False,False,False,False,True ,False,False]
@@ -96,4 +102,5 @@ samplePuzzle10 = Puzzle
       , [False,False,False,True ,False,False,True ,False,False,False]
       , [False,False,False,False,True ,True ,False,False,False,False]
       ]
+  , puzzleDifficulty = "medium"
   }
