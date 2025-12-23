@@ -29,17 +29,17 @@ import Nonogram.Puzzles ( loadPuzzlesFromFile )
 data ActionMode = ModeFill | ModeX
   deriving (Eq, Show)
 
--- Normaliza valores de difficulty desde JSON o embebidos a claves en español sin acentos
+-- Normaliza valores de difficulty desde JSON o embebidos a claves en inglés
 normalizeDifficulty :: String -> String
 normalizeDifficulty s =
   let low = map toLower s
   in if "easy" `List.isInfixOf` low || "facil" `List.isInfixOf` low || "fácil" `List.isInfixOf` low
-     then "facil"
+     then "easy"
      else if "medium" `List.isInfixOf` low || "medio" `List.isInfixOf` low
-     then "medio"
+     then "medium"
      else if "hard" `List.isInfixOf` low || "dificil" `List.isInfixOf` low || "difícil" `List.isInfixOf` low
-     then "dificil"
-     else "facil" -- fallback
+     then "hard"
+     else "easy" -- fallback
 
 -- Vista principal para Nonogramas
 nonogramView :: Window -> IORef Screen -> UI () -> UI ()
@@ -56,16 +56,16 @@ nonogramView window screenRef renderApp = do
       allRawPuzzles = if null puzzlesLoaded then builtIn else puzzlesLoaded
       allPuzzles = map (\p -> p { puzzleDifficulty = normalizeDifficulty (puzzleDifficulty p) }) allRawPuzzles
 
-      -- fijar la lista de dificultades disponible en la UI (solo estas tres, en este orden)
-      difficulties = [("facil","Fácil"), ("medio","Medio"), ("dificil","Difícil")]
-      defaultDifficultyKey = "facil"
+      -- lista de dificultades en inglés
+      difficulties = [("easy","Easy"), ("medium","Medium"), ("hard","Hard")]
+      defaultDifficultyKey = "easy"
 
-  -- UI: difficulty selector (solo facil/medio/dificil, default facil)
+  -- UI: difficulty selector
   difficultySelect <- UI.select # set (attr "id") "difficulty-select"
   forM_ difficulties $ \(k,label) -> do
-    opt <- UI.option # set UI.text label # set UI.value k # set UI.style [("color", "#000000")]
+    opt <- UI.option # set UI.text label # set UI.value k
     void $ element difficultySelect #+ [ pure opt ]
-  -- establecer default "facil"
+  -- establecer default "easy"
   void $ element difficultySelect # set UI.value defaultDifficultyKey
 
   -- puzzle selector (se llenará según dificultad)
@@ -85,7 +85,7 @@ nonogramView window screenRef renderApp = do
       populatePuzzleSelect ps = do
         element puzzleSelect # set children []
         forM_ (zip [1..] ps) $ \(i,p) -> do
-          opt <- UI.option # set UI.text (formatLabel p) # set UI.value (show i) # set UI.style [("color", "#000000")]
+          opt <- UI.option # set UI.text (formatLabel p) # set UI.value (show i)
           void $ element puzzleSelect #+ [ pure opt ]
 
   populatePuzzleSelect currentPuzzles
@@ -104,9 +104,9 @@ nonogramView window screenRef renderApp = do
 
   resetBtn <- UI.button # set UI.text "Reiniciar" # set UI.class_ "game-reset-button neon-btn"
 
-  -- mode button (ASCII only): "#" = fill, "X" = mark empty
+  -- mode button - solo color, sin símbolo
   actionModeRef <- liftIO $ newIORef ModeFill
-  modeButton <- UI.button # set UI.text "#" # set UI.class_ "mode-button neon-btn" # set (attr "title") "Modo: Rellenar (#) / Marcar X (X)"
+  modeButton <- UI.button # set UI.text "" # set UI.class_ "mode-button neon-btn fill-mode" # set (attr "title") "Modo: Rellenar"
 
   -- placeholders for clues and board
   topPlaceholder <- UI.div # set UI.class_ "top-placeholder"
@@ -121,8 +121,9 @@ nonogramView window screenRef renderApp = do
       ModeFill -> ModeX
       ModeX    -> ModeFill
     m <- liftIO $ readIORef actionModeRef
-    element modeButton # set UI.text (if m == ModeFill then "#" else "X")
-    element modeButton # set (attr "title") (if m == ModeFill then "Modo: Rellenar (#)" else "Modo: Marcar X (X)")
+    let (title, cls) = if m == ModeFill then ("Modo: Rellenar", "fill-mode") else ("Modo: Marcar como vacío", "x-mode")
+    element modeButton # set (attr "title") title
+    element modeButton # set UI.class_ ("mode-button neon-btn " ++ cls)
 
   -- Render + createButtons
   let
@@ -135,9 +136,10 @@ nonogramView window screenRef renderApp = do
           sol = puzzleSolution pb
           errs = errorCount game
           maxE = maxErrors game
+          gameSt = gameState game
 
       -- only show when won/lost
-      element info # set UI.text (case gameState game of
+      element info # set UI.text (case gameSt of
                                    Playing -> ""
                                    Won     -> "¡GANASTE!"
                                    Lost    -> "PERDISTE!")
@@ -195,11 +197,11 @@ nonogramView window screenRef renderApp = do
       forM_ (zip (take (length positions) btns') positions) $ \(btn, (r,c)) -> do
         let cell = (board !! (r-1)) !! (c-1)
             expected = (sol !! (r-1)) !! (c-1)
-            (txt, cls, enabled, style) = renderCellUI cell expected (gameState game)
+            (txt, cls, enabled, style) = renderCellUI cell expected gameSt
         element btn
           # set UI.text txt
           # set UI.class_ ("non-cell " ++ cls)
-          # set UI.enabled (enabled && gameState game == Playing)
+          # set UI.enabled (enabled && gameSt == Playing)
           # set UI.style style
 
       return ()
@@ -211,12 +213,17 @@ nonogramView window screenRef renderApp = do
       forM_ (zip btns positions) $ \(btn, pos@(r,c)) -> do
         on UI.click btn $ \_ -> do
           mode <- liftIO $ readIORef actionModeRef
-          case mode of
-            ModeFill -> liftIO $ modifyIORef gameRef (setFilled pos)
-            ModeX    -> liftIO $ modifyIORef gameRef (setMarkedEmpty pos)
-          g <- liftIO $ readIORef gameRef
-          when (checkVictory g) $ liftIO $ modifyIORef gameRef (\gg -> gg { gameState = Won })
-          renderGame
+          gameBefore <- liftIO $ readIORef gameRef
+          -- Solo permitir jugar si el juego está en estado Playing
+          when (gameState gameBefore == Playing) $ do
+            case mode of
+              ModeFill -> liftIO $ modifyIORef gameRef (setFilled pos)
+              ModeX    -> liftIO $ modifyIORef gameRef (setMarkedEmpty pos)
+            gameAfter <- liftIO $ readIORef gameRef
+            -- Verificar victoria después de cada movimiento
+            when (checkVictory gameAfter && gameState gameAfter == Playing) $ do
+              liftIO $ modifyIORef gameRef (\g -> g { gameState = Won })
+            renderGame
       return btns
 
   -- initial buttons
@@ -264,15 +271,20 @@ nonogramView window screenRef renderApp = do
   controls <- UI.div # set UI.class_ "controls" #+ [ pure resetBtn, pure puzzleSelect, pure modeButton ]
   headerControls <- UI.div # set UI.class_ "header-controls" #+ [ pure difficultySelect ]
 
-  container <- UI.div # set UI.class_ "nonogram-container"
-    #+ [ pure backButton
-       , pure titleEl
+  -- Contenedor principal que centra todo
+  mainContent <- UI.div # set UI.class_ "main-content" 
+    #+ [ pure titleEl
        , pure headerControls
        , pure info
        , pure errCountDiv
        , pure topPlaceholder
        , pure leftPlaceholder
        , pure controls
+       ]
+
+  container <- UI.div # set UI.class_ "nonogram-container"
+    #+ [ pure backButton
+       , pure mainContent
        ]
 
   void $ getBody window #+ [ pure container ]
@@ -283,13 +295,15 @@ nonogramView window screenRef renderApp = do
 -- Renderizar celda
 -- retorna: (texto, clase-css, enabled?, estilo-inline)
 renderCellUI :: Cell -> Bool -> Nonogram.Types.GameState -> (String, String, Bool, [(String,String)])
-renderCellUI Unknown _ _ =
+renderCellUI Unknown _ Playing =
   ("", "unknown", True, [])
+renderCellUI Unknown _ _ =  -- Si el juego terminó, mostrar celdas desconocidas correctamente
+  ("", "unknown", False, [])
 renderCellUI LockedEmpty _ _ =
-  ("X", "locked-empty", False, [])
+  ("X", "marked-empty", False, [])
 renderCellUI Filled expected _
   | expected  = ("", "filled-correct", False, [])
-  | otherwise = ("X", "filled-wrong", False, [])
+  | otherwise = ("X", "marked-empty", False, [])  -- ERROR: Rellenar donde debería ir X
 renderCellUI MarkedEmpty _ _ =
   ("X", "marked-empty", True, [])
 
@@ -307,6 +321,15 @@ addStyles window = do
         , "  box-shadow: 0 0 50px #00ffff, 0 0 80px #ff00ff;"
         , "}"
         , ""
+        , "/* Contenedor principal centrado */"
+        , ".main-content {"
+        , "  display: flex;"
+        , "  flex-direction: column;"
+        , "  align-items: center;"
+        , "  justify-content: center;"
+        , "  width: 100%;"
+        , "}"
+        , ""
         , "/* TÍTULO */"
         , ".game-title {"
         , "  font-family: 'Orbitron', sans-serif; font-size: 36px; margin: 20px 0; color: #00ffff;"
@@ -314,17 +337,25 @@ addStyles window = do
         , "  letter-spacing: 2px;"
         , "}"
         , ".game-info, .error-info { margin:10px 0; font-size:20px; color: #00ffff; text-shadow: 0 0 10px #00ffff; }"
+        , ".game-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 15px #00ff00; }"
         , ""
-        , "/* CLUES */"
-        , ".top-row { display:flex; align-items:flex-end; gap:10px; margin-top:20px; }"
-        , ".corner { width:80px; }"
+        , "/* CLUES - Posicionamiento correcto y centrado */"
+        , ".top-placeholder, .left-placeholder {"
+        , "  display: flex;"
+        , "  justify-content: center;"
+        , "  width: 100%;"
+        , "  margin: 0 auto;"
+        , "}"
+        , ".top-row { display:flex; align-items:flex-end; gap:10px; margin-top:20px; justify-content: center; }"
+        , ".corner { width:80px; height:96px; }"
         , ".top-clues { display:flex; gap:6px; }"
         , ".top-clue { display:flex; flex-direction: column; align-items:center; justify-content:flex-end; width:54px; height:96px; font-size:16px; color:#00ffff; text-shadow: 0 0 5px #00ffff; }"
-        , ".left-clues { display:flex; flex-direction: column; gap:6px; width:90px; }"
+        , ".mid-row { display:flex; gap:10px; margin-top:10px; justify-content: center; align-items: flex-start; }"
+        , ".left-clues { display:flex; flex-direction: column; gap:6px; width:90px; margin-top: 20px; }"
         , ".left-clue { display:flex; justify-content:flex-end; align-items:center; padding-right:8px; height:54px; font-size:16px; color:#00ffff; text-shadow: 0 0 5px #00ffff; }"
         , ""
         , "/* BOARD */"
-        , ".non-board { display:flex; flex-direction: column; gap:8px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; border: 2px solid #00ffff; box-shadow: 0 0 30px #00ffff; }"
+        , ".non-board { display:flex; flex-direction: column; gap:8px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; border: 2px solid #00ffff; box-shadow: 0 0 30px #00ffff; margin: 0 auto; }"
         , ".non-row { display:flex; gap:8px; }"
         , ""
         , "/* CELDAS - estilo neón con bordes luminosos */"
@@ -345,9 +376,7 @@ addStyles window = do
         , "/* Estados de celda neon */"
         , ".non-cell.unknown { background: #111111; border-color: #00ffff; }"
         , ".non-cell.filled-correct { background: #00ff00; border-color: #00ff00; color: #000; box-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00; }"
-        , ".non-cell.filled-wrong { background: #ff0000; border-color: #ff0000; color: #fff; box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000; }"
-        , ".non-cell.marked-empty { background: #111111; color: #ffaa00; border-color: #ffaa00; box-shadow: 0 0 20px #ffaa00; }"
-        , ".non-cell.locked-empty { background: #222222; color: #888888; border-color: #888888; border-style: dashed; }"
+        , ".non-cell.marked-empty { background: #111111; color: #ff0000; border-color: #ff0000; box-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000; }"
         , ""
         , "/* BOTONES estilo neón */"
         , ".neon-btn {"
@@ -363,24 +392,56 @@ addStyles window = do
         , "  transition: all 0.2s ease;"
         , "}"
         , ".neon-btn:hover { transform: translateY(-3px); box-shadow: 0 0 25px #00ffff, 0 0 40px #ff00ff; }"
-        , ".controls { display:flex; gap:15px; margin-top:30px; align-items: center; }"
+        , ".controls { display:flex; gap:15px; margin-top:30px; align-items: center; justify-content: center; }"
         , ".game-reset-button { }"
-        , ".mode-button { width:60px; height:50px; font-size:24px; }"
+        , ".mode-button { width:60px; height:50px; position: relative; border-radius: 8px; }"
+        , ".fill-mode { background: #00ff00; border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }"
+        , ".fill-mode:hover { box-shadow: 0 0 25px #00ff00, 0 0 40px #00ff00; }"
+        , ".x-mode { background: #ff0000; border-color: #ff0000; box-shadow: 0 0 15px #ff0000; }"
+        , ".x-mode:hover { box-shadow: 0 0 25px #ff0000, 0 0 40px #ff0000; }"
+        , ".x-mode::after {"
+        , "  content: 'X';"
+        , "  position: absolute;"
+        , "  top: 50%;"
+        , "  left: 50%;"
+        , "  transform: translate(-50%, -50%);"
+        , "  font-size: 24px;"
+        , "  color: #ffffff;"
+        , "  font-weight: bold;"
+        , "}"
         , ".back-button { align-self:flex-start; margin-bottom:20px; }"
         , ""
-        , "/* Selects */"
+        , "/* Selectors con estilo neon y texto visible */"
+        , ".header-controls { margin-bottom: 20px; display: flex; justify-content: center; }"
         , ".header-controls select, .controls select {"
         , "  padding:10px 15px; margin-right:15px; border-radius:8px;"
-        , "  background: #111111; color:#00ffff;"
-        , "  border: 2px solid #00ffff;"
-        , "  font-family: 'Orbitron', sans-serif;"
-        , "  font-size: 14px;"
-        , "  box-shadow: 0 0 10px #00ffff;"
+        , "  background: #111111 !important; color:#00ffff !important;"
+        , "  border: 2px solid #00ffff !important;"
+        , "  font-family: 'Orbitron', sans-serif !important;"
+        , "  font-size: 14px !important;"
+        , "  box-shadow: 0 0 10px #00ffff !important;"
+        , "  appearance: none !important;"
+        , "  -webkit-appearance: none !important;"
+        , "  -moz-appearance: none !important;"
         , "}"
-        , ".header-controls option, .controls option {"
-        , "  background: #000; color: #00ffff;"
+        , ".header-controls select option, .controls select option {"
+        , "  background: #000000 !important; color: #00ffff !important;"
+        , "  padding: 10px !important;"
         , "}"
-        , "@media (max-width:520px) { .non-cell { width:40px; height:40px; font-size: 18px; } .top-clue { width:40px; height:64px; } }"
+        , ".header-controls select:focus, .controls select:focus {"
+        , "  outline: none !important;"
+        , "  border-color: #ff00ff !important;"
+        , "  box-shadow: 0 0 20px #ff00ff !important;"
+        , "}"
+        , "@media (max-width:520px) { "
+        , "  .non-cell { width:40px; height:40px; font-size: 18px; } "
+        , "  .top-clue { width:40px; height:64px; } "
+        , "  .left-clues { width: 60px; } "
+        , "  .left-clue { font-size: 14px; height: 40px; } "
+        , "  .non-board { padding: 15px; } "
+        , "  .top-row, .mid-row { flex-wrap: wrap; justify-content: center; }"
+        , "  .game-info { font-size: 20px; }"
+        , "}"
         ]
   body <- getBody window
   styleEl <- UI.div # set UI.html ("<style>" ++ styles ++ "</style>")
