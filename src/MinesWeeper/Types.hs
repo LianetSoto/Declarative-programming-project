@@ -7,7 +7,7 @@ module MinesWeeper.Types
     
 import Data.Array
 
--- Tipos básicos
+-- Tipos basicos
 type Position = (Int, Int)
 type BoardSize = (Int, Int)  -- (filas, columnas)
 
@@ -34,7 +34,7 @@ type Board = Array Position Cell
 data GameState = 
     Playing
     | Won
-    | Lost Position  -- Posición de la mina que hizo perder
+    | Lost Position  -- Posicion de la mina que hizo perder
     deriving (Eq, Show)
 
 -- Juego completo
@@ -48,7 +48,7 @@ data Game = Game
     }
     deriving (Show)
 
--- Acción del jugador
+-- Accion del jugador
 data PlayerAction = 
     RevealCell Position
     | ToggleFlag Position
@@ -66,7 +66,7 @@ data Difficulty =
     | Custom Int Int Int  -- filas, columnas, minas
     deriving (Eq, Show)
 
--- Configuración inicial
+-- Configuracion inicial
 data Config = Config
     { configDifficulty :: Difficulty
     , configSeed :: Maybe Int  -- Semilla para reproducción
