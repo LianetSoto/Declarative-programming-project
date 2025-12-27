@@ -15,7 +15,7 @@ import MinesWeeper.Logic
 import MinesWeeper.Board
 
 --------------------------------------------------
--- Tipo para modo de acción
+-- Tipo para modo de accion
 --------------------------------------------------
 data ActionMode = Reveal | Flag
   deriving (Eq, Show)
@@ -191,7 +191,7 @@ minesweeperView window screenRef renderApp = do
   void $ getBody window #+ [pure container]
 
 --------------------------------------------------
--- Cuadro de selección de dificultad
+-- Cuadro de seleccion de dificultad
 --------------------------------------------------
 
 showDifficultyDialog :: Window -> IORef Game -> IORef ActionMode -> UI () -> UI ()

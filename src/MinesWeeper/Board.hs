@@ -5,7 +5,7 @@ import Data.Array
 import System.Random
 import Data.List (nub)
 
--- Crear un tablero vacío
+-- Crear tablero vacio
 createEmptyBoard :: BoardSize -> Board
 createEmptyBoard (rows, cols) = 
     array ((1,1), (rows, cols))
@@ -33,7 +33,7 @@ generateMinePositions (rows, cols) numMines gen =
                 then go k acc g'
                 else go (k-1) (idx:acc) g'
 
--- Calcular minas adyacentes para una posición
+-- Calcular minas adyacentes para una posicion
 calculateAdjacentMines :: [Position] -> Position -> Int
 calculateAdjacentMines mines pos =
     length $ filter isAdjacent mines
@@ -68,7 +68,7 @@ createBoardWithMines size@(rows, cols) minePositions =
                     then Cell Hidden (Number count) count
                     else Cell Hidden Empty 0
 
--- Inicializar un nuevo juego (CORREGIDO)
+-- Inicializar un nuevo juego 
 initializeGame :: Difficulty -> Maybe Int -> IO Game
 initializeGame diff customMines = do
     let (size, defaultMines) = case diff of
@@ -77,7 +77,7 @@ initializeGame diff customMines = do
             Expert       -> ((16, 30), 99)
             Custom r c m -> ((r, c), m)
 
-        -- ⭐ Si customMines tiene un número → usarlo
+        --  Si customMines tiene un número 
         mines = case customMines of
             Just m  -> m
             Nothing -> defaultMines
@@ -96,7 +96,7 @@ initializeGame diff customMines = do
         , startTime = Nothing
         }
 
--- Verificar si una posición es válida
+-- Verificar si una posicion es valida
 isValidPosition :: BoardSize -> Position -> Bool
 isValidPosition (rows, cols) (r, c) =
     r >= 1 && r <= rows && c >= 1 && c <= cols

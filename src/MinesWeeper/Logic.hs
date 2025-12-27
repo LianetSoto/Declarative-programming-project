@@ -16,9 +16,9 @@ revealCell pos game@Game{gameBoard = board, gameState = state}
         let cell = board ! pos
         in case cellState cell of
             Hidden -> processReveal pos game
-            _      -> game  -- No hacer nada si ya está revelada o con bandera
+            _      -> game  -- No hacer nada si ya esta revelada o con bandera
 
--- Procesar la revelación (con flood fill si es necesario)
+-- Procesar la revelacion 
 processReveal :: Position -> Game -> Game
 processReveal pos game@Game{gameBoard = board} =
     let cell = board ! pos
@@ -28,13 +28,13 @@ processReveal pos game@Game{gameBoard = board} =
             in gameRevealed { gameState = Lost pos }
         _    -> floodReveal pos game
 
--- ALGORITMO DE FLOOD FILL (revelación en cascada)
+-- algoritmo revelacion en cascada
 floodReveal :: Position -> Game -> Game
 floodReveal startPos game =
     let board = gameBoard game
         size = boardSize game
         
-        -- Función recursiva de flood fill
+        -- Funcion recursiva de flood fill
         doFloodFill :: [Position] -> Board -> Board
         doFloodFill [] b = b
         doFloodFill (pos:queue) b
@@ -50,17 +50,17 @@ floodReveal startPos game =
                                 let newCell = cell { cellState = Revealed }
                                     newBoard = b // [(pos, newCell)]
                                     
-                                    -- Si es una celda vacía (número 0), añadir vecinos
+                                    -- Si es una celda vacia, annadir vecinos
                                     nextQueue = if adjacentMines cell == 0
                                         then queue ++ getAdjacentPositions size pos
                                         else queue
                                 in doFloodFill nextQueue newBoard
                     _ -> doFloodFill queue b
         
-        -- Iniciar flood fill desde la posición
+        -- Iniciar flood fill desde la posicion
         newBoard = doFloodFill [startPos] board
 
-        -- Verificar si ganó
+        -- Verificar si gano
         hasWon = checkWinCondition newBoard (mineCount game)
 
     in if hasWon
@@ -70,7 +70,7 @@ floodReveal startPos game =
         else
             game { gameBoard = newBoard, gameState = Playing }
 
--- Verificar condición de victoria
+-- Verificar condicion de victoria
 checkWinCondition :: Board -> Int -> Bool
 checkWinCondition board totalMines =
     let cells = elems board
