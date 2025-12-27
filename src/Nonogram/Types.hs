@@ -32,7 +32,7 @@ data Game = Game
   , gameState  :: GameState
   , startTime  :: Maybe Int
   , errorCount :: Int        -- errores cometidos por el jugador
-  , maxErrors  :: Int        -- máximo de errores permitidos (p. ej. 3)
+  , maxErrors  :: Int        -- máximo de errores permitidos (3)
   } deriving (Show)
 
 -- Algunos puzzles embebidos (fallback)
