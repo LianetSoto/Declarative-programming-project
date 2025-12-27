@@ -16,14 +16,14 @@ library
   exposed-modules:
       Core.Types
       Menu.MainMenu
-      Nonogram.Game
-      Nonogram.Puzzles
-      Nonogram.Types
-      Nonogram.View
       MinesWeeper.Board
       MinesWeeper.Logic
       MinesWeeper.Types
       MinesWeeper.View
+      Nonogram.Game
+      Nonogram.Puzzles
+      Nonogram.Types
+      Nonogram.View
       TicTacToe.AI
       TicTacToe.Computer
       TicTacToe.Game
@@ -35,9 +35,9 @@ library
       src
   build-depends:
       aeson
+    , array
     , base >=4.7 && <5
     , bytestring
-    , array
     , containers
     , mtl
     , random
@@ -53,9 +53,9 @@ executable haskell-minigames-exe
   ghc-options: -threaded
   build-depends:
       aeson
+    , array
     , base >=4.7 && <5
     , bytestring
-    , array
     , containers
     , haskell-minigames
     , mtl
