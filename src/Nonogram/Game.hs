@@ -195,7 +195,7 @@ checkVictory Game{ gameBoard = board, gamePuzzle = puzzle } =
          | r <- [1..rows], c <- [1..cols]
          ]
 
--- VALIDACIÓN ASISTIDA (se mantiene en el backend pero UI no la usa)
+-- VALIDACIÓN ASISTIDA
 validateRow :: Int -> Game -> Game
 validateRow r game@Game{ gameBoard = board, gamePuzzle = puzzle, errorCount = errs, maxErrors = maxE } =
   let (rows, cols) = puzzleSize puzzle

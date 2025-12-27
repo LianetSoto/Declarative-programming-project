@@ -25,7 +25,7 @@ import Nonogram.Game
   )
 import Nonogram.Puzzles ( loadPuzzlesFromFile )
 
--- Modo de acción (solo dos modos ahora)
+-- Modo de acción
 data ActionMode = ModeFill | ModeX
   deriving (Eq, Show)
 
@@ -91,8 +91,8 @@ nonogramView window screenRef renderApp = do
   populatePuzzleSelect currentPuzzles
 
   -- UI elements
-  backButton <- UI.button # set UI.text "← Back" # set UI.class_ "back-button neon-btn"
-  
+  backButton <- UI.button # set UI.text "← Back" # set UI.class_ "back-button"
+
   -- Handler para el botón de volver
   on UI.click backButton $ \_ -> do
     liftIO $ writeIORef screenRef Menu
@@ -102,11 +102,11 @@ nonogramView window screenRef renderApp = do
   info  <- UI.div # set UI.class_ "game-info" # set UI.text ""        -- only win/lose
   errCountDiv <- UI.div # set UI.class_ "error-info" # set UI.text "Errores: 0/3"
 
-  resetBtn <- UI.button # set UI.text "Reiniciar" # set UI.class_ "game-reset-button neon-btn"
+  resetBtn <- UI.button # set UI.text "Reiniciar" # set UI.class_ "game-reset-button"
 
-  -- mode button - solo color, sin símbolo
+  -- mode button
   actionModeRef <- liftIO $ newIORef ModeFill
-  modeButton <- UI.button # set UI.text "" # set UI.class_ "mode-button neon-btn fill-mode" # set (attr "title") "Modo: Rellenar"
+  modeButton <- UI.button # set UI.text "" # set UI.class_ "mode-button fill-mode" # set (attr "title") "Modo: Rellenar"
 
   -- placeholders for clues and board
   topPlaceholder <- UI.div # set UI.class_ "top-placeholder"
@@ -123,7 +123,7 @@ nonogramView window screenRef renderApp = do
     m <- liftIO $ readIORef actionModeRef
     let (title, cls) = if m == ModeFill then ("Modo: Rellenar", "fill-mode") else ("Modo: Marcar como vacío", "x-mode")
     element modeButton # set (attr "title") title
-    element modeButton # set UI.class_ ("mode-button neon-btn " ++ cls)
+    element modeButton # set UI.class_ ("mode-button " ++ cls)
 
   -- Render + createButtons
   let
@@ -213,65 +213,43 @@ nonogramView window screenRef renderApp = do
       forM_ (zip btns positions) $ \(btn, pos@(r,c)) -> do
         on UI.click btn $ \_ -> do
           mode <- liftIO $ readIORef actionModeRef
-          gameBefore <- liftIO $ readIORef gameRef
-          -- Solo permitir jugar si el juego está en estado Playing
-          when (gameState gameBefore == Playing) $ do
-            case mode of
-              ModeFill -> liftIO $ modifyIORef gameRef (setFilled pos)
-              ModeX    -> liftIO $ modifyIORef gameRef (setMarkedEmpty pos)
-            gameAfter <- liftIO $ readIORef gameRef
-            -- Verificar victoria después de cada movimiento
-            when (checkVictory gameAfter && gameState gameAfter == Playing) $ do
-              liftIO $ modifyIORef gameRef (\g -> g { gameState = Won })
-            renderGame
+          let setFn = if mode == ModeFill then setFilled else setMarkedEmpty
+          liftIO $ modifyIORef gameRef (setFn pos)
+          renderGame
       return btns
 
-  -- initial buttons
-  let (r0, c0) = puzzleSize initialPuzzle
-  initialBtns <- createButtons r0 c0
-  liftIO $ writeIORef buttonsRef initialBtns
-
-  -- reset handler
-  on UI.click resetBtn $ \_ -> do
-    g <- liftIO $ readIORef gameRef
-    liftIO $ writeIORef gameRef (resetGame g)
-    let (rCount, cCount) = puzzleSize (gamePuzzle g)
-    newBtns <- createButtons rCount cCount
-    liftIO $ writeIORef buttonsRef newBtns
+  -- handlers para selects
+  on UI.selectionChange difficultySelect $ \_ -> do
+    selectedDiff <- get UI.value difficultySelect
+    let ps = puzzlesFor selectedDiff
+    populatePuzzleSelect ps
+    let newPuzzle = if null ps then head allPuzzles else head ps
+    liftIO $ writeIORef gameRef (initialGame newPuzzle)
     renderGame
 
-  -- difficulty change -> repopulate puzzleSelect (no "all" option)
-  on UI.selectionChange difficultySelect $ \_ -> do
+  on UI.selectionChange puzzleSelect $ \_ -> do
+    val <- get UI.value puzzleSelect
+    let idx = read val :: Int
     diff <- get UI.value difficultySelect
     let ps = puzzlesFor diff
-    populatePuzzleSelect ps
-    case ps of
-      (p:_) -> do
-        liftIO $ writeIORef gameRef (initialGame p)
-        newBtns <- createButtons (fst (puzzleSize p)) (snd (puzzleSize p))
-        liftIO $ writeIORef buttonsRef newBtns
-        renderGame
-      [] -> return ()
+        newPuzzle = if idx > 0 && idx <= length ps then ps !! (idx - 1) else head ps
+    liftIO $ writeIORef gameRef (initialGame newPuzzle)
+    renderGame
 
-  -- puzzle selection
-  on UI.selectionChange puzzleSelect $ \_ -> do
-    idxStr <- get UI.value puzzleSelect
-    diff <- get UI.value difficultySelect
-    let psList = puzzlesFor diff
-    case reads idxStr :: [(Int, String)] of
-      [(i, _)] | i >= 1 && i <= length psList -> do
-        let p = psList !! (i-1)
-        liftIO $ writeIORef gameRef (initialGame p)
-        newBtns <- createButtons (fst (puzzleSize p)) (snd (puzzleSize p))
-        liftIO $ writeIORef buttonsRef newBtns
-        renderGame
-      _ -> return ()
+  -- handler para reset
+  on UI.click resetBtn $ \_ -> do
+    liftIO $ modifyIORef gameRef resetGame
+    renderGame
 
-  -- Controls + container
-  controls <- UI.div # set UI.class_ "controls" #+ [ pure resetBtn, pure puzzleSelect, pure modeButton ]
-  headerControls <- UI.div # set UI.class_ "header-controls" #+ [ pure difficultySelect ]
+  -- header con selects
+  headerControls <- UI.div # set UI.class_ "header-controls"
+    #+ [ pure difficultySelect, pure puzzleSelect ]
 
-  -- Contenedor principal que centra todo
+  -- controles inferiores
+  controls <- UI.div # set UI.class_ "controls"
+    #+ [ pure modeButton, pure resetBtn ]
+
+  -- contenedor principal que centra todo
   mainContent <- UI.div # set UI.class_ "main-content" 
     #+ [ pure titleEl
        , pure headerControls
@@ -307,98 +285,161 @@ renderCellUI Filled expected _
 renderCellUI MarkedEmpty _ _ =
   ("X", "marked-empty", True, [])
 
--- Styles
+-- Styles 
 addStyles :: Window -> UI ()
 addStyles window = do
   let styles = unlines
-        [ "/* ROOT / BACKGROUND */"
-        , "body { margin:0; font-family: 'Orbitron', sans-serif; background: #000; color: #00ffff; }"
-        , ".nonogram-container {"
-        , "  min-height:100vh;"
-        , "  display:flex; flex-direction: column; align-items:center; padding:50px;"
-        , "  background: #000000;"
-        , "  border-radius: 25px;"
-        , "  box-shadow: 0 0 50px #00ffff, 0 0 80px #ff00ff;"
+        [ "* { margin: 0; padding: 0; box-sizing: border-box; }"
+        , "body {"
+        , "  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
+        , "  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);"
+        , "  min-height: 100vh;"
+        , "  display: flex;"
+        , "  align-items: center;"
+        , "  justify-content: center;"
+        , "  padding: 20px;"
+        , "  color: #fff;"
         , "}"
-        , ""
-        , "/* Contenedor principal centrado */"
-        , ".main-content {"
+        , ".nonogram-container {"
+        , "  width: fit-content;"
+        , "  max-width: 100vw;"
+        , "  background: rgba(255, 255, 255, 0.05);"
+        , "  backdrop-filter: blur(10px);"
+        , "  border-radius: 20px;"
+        , "  padding: 40px;"
+        , "  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(138, 43, 226, 0.2);"
+        , "  border: 1px solid rgba(255, 255, 255, 0.1);"
         , "  display: flex;"
         , "  flex-direction: column;"
         , "  align-items: center;"
-        , "  justify-content: center;"
-        , "  width: 100%;"
         , "}"
-        , ""
         , "/* TÍTULO */"
         , ".game-title {"
-        , "  font-family: 'Orbitron', sans-serif; font-size: 36px; margin: 20px 0; color: #00ffff;"
-        , "  text-shadow: 0 0 10px #00ffff;"
-        , "  letter-spacing: 2px;"
+        , "  text-align: center;"
+        , "  color: #fff;"
+        , "  font-size: 3em;"
+        , "  margin-bottom: 10px;"
+        , "  text-shadow: 0 0 20px rgba(138, 43, 226, 0.8), 0 0 40px rgba(138, 43, 226, 0.5);"
+        , "  font-weight: bold;"
         , "}"
-        , ".game-info, .error-info { margin:10px 0; font-size:20px; color: #00ffff; text-shadow: 0 0 10px #00ffff; }"
-        , ".game-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 15px #00ff00; }"
-        , ""
-        , "/* CLUES - Posicionamiento correcto y centrado */"
+        , ".game-info, .error-info {"
+        , "  text-align: center;"
+        , "  margin: 10px 0;"
+        , "  font-size: 1.2em;"
+        , "  color: #a0a0a0;"
+        , "}"
+        , ".game-info {"
+        , "  font-size: 1.5em;"
+        , "  color: #ffd700;"
+        , "  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);"
+        , "}"
+        , "/* CLUES */"
         , ".top-placeholder, .left-placeholder {"
         , "  display: flex;"
         , "  justify-content: center;"
         , "  width: 100%;"
         , "  margin: 0 auto;"
         , "}"
-        , ".top-row { display:flex; align-items:flex-end; gap:10px; margin-top:20px; justify-content: center; }"
-        , ".corner { width:80px; height:96px; }"
-        , ".top-clues { display:flex; gap:6px; }"
-        , ".top-clue { display:flex; flex-direction: column; align-items:center; justify-content:flex-end; width:54px; height:96px; font-size:16px; color:#00ffff; text-shadow: 0 0 5px #00ffff; }"
-        , ".mid-row { display:flex; gap:10px; margin-top:10px; justify-content: center; align-items: flex-start; }"
-        , ".left-clues { display:flex; flex-direction: column; gap:6px; width:90px; margin-top: 20px; }"
-        , ".left-clue { display:flex; justify-content:flex-end; align-items:center; padding-right:8px; height:54px; font-size:16px; color:#00ffff; text-shadow: 0 0 5px #00ffff; }"
-        , ""
+        , ".top-row { display: flex; align-items: flex-end; gap: 10px; margin-top: 20px; justify-content: center; }"
+        , ".corner { width: 80px; height: 96px; }"
+        , ".top-clues { display: flex; gap: 6px; }"
+        , ".top-clue {"
+        , "  display: flex;"
+        , "  flex-direction: column;"
+        , "  align-items: center;"
+        , "  justify-content: flex-end;"
+        , "  width: 54px;"
+        , "  height: 96px;"
+        , "  font-size: 16px;"
+        , "  color: #00d4ff;"
+        , "  text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);"
+        , "}"
+        , ".mid-row { display: flex; gap: 10px; margin-top: 10px; justify-content: center; align-items: flex-start; overflow-x: auto; }"
+        , ".left-clues { display: flex; flex-direction: column; gap: 6px; width: 90px; margin-top: 20px; }"
+        , ".left-clue {"
+        , "  display: flex;"
+        , "  justify-content: flex-end;"
+        , "  align-items: center;"
+        , "  padding-right: 8px;"
+        , "  height: 54px;"
+        , "  font-size: 16px;"
+        , "  color: #00d4ff;"
+        , "  text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);"
+        , "}"
         , "/* BOARD */"
-        , ".non-board { display:flex; flex-direction: column; gap:8px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; border: 2px solid #00ffff; box-shadow: 0 0 30px #00ffff; margin: 0 auto; }"
-        , ".non-row { display:flex; gap:8px; }"
-        , ""
-        , "/* CELDAS - estilo neón con bordes luminosos */"
+        , ".non-board {"
+        , "  display: flex;"
+        , "  flex-direction: column;"
+        , "  gap: 8px;"
+        , "  background: rgba(0, 0, 0, 0.5);"
+        , "  padding: 20px;"
+        , "  border-radius: 15px;"
+        , "  border: 2px solid rgba(138, 43, 226, 0.5);"
+        , "  box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);"
+        , "  margin: 0 auto;"
+        , "}"
+        , ".non-row { display: flex; gap: 8px; }"
+        , "/* CELDAS */"
         , ".non-cell {"
-        , "  width:54px; height:54px; display:flex; align-items:center; justify-content:center;"
-        , "  border-radius:8px;"
-        , "  border: 2px solid #00ffff;"
-        , "  background: #111111;"
-        , "  cursor:pointer; font-weight:bold; font-family: 'Orbitron', sans-serif; color: #ffffff;"
+        , "  width: 54px;"
+        , "  height: 54px;"
+        , "  display: flex;"
+        , "  align-items: center;"
+        , "  justify-content: center;"
+        , "  border-radius: 8px;"
+        , "  border: 2px solid rgba(138, 43, 226, 0.5);"
+        , "  background: rgba(26, 26, 26, 0.8);"
+        , "  cursor: pointer;"
+        , "  font-weight: bold;"
+        , "  color: #fff;"
         , "  transition: all 0.2s ease;"
         , "  font-size: 24px;"
-        , "  text-shadow: 0 0 5px currentColor;"
-        , "  box-shadow: 0 0 15px #00ffff;"
+        , "  text-shadow: 0 0 5px rgba(138, 43, 226, 0.5);"
+        , "  box-shadow: 0 0 15px rgba(138, 43, 226, 0.3);"
         , "}"
-        , ".non-cell:hover:not([disabled]) { transform: translateY(-3px); box-shadow: 0 0 25px #00ffff, 0 0 40px #ff00ff; }"
+        , ".non-cell:hover:not([disabled]) {"
+        , "  transform: translateY(-3px);"
+        , "  box-shadow: 0 0 25px rgba(138, 43, 226, 0.5), 0 0 40px rgba(255, 107, 157, 0.3);"
+        , "}"
         , ".non-cell[disabled] { cursor: default; }"
-        , ""
-        , "/* Estados de celda neon */"
-        , ".non-cell.unknown { background: #111111; border-color: #00ffff; }"
-        , ".non-cell.filled-correct { background: #00ff00; border-color: #00ff00; color: #000; box-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00; }"
-        , ".non-cell.marked-empty { background: #111111; color: #ff0000; border-color: #ff0000; box-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000; }"
-        , ""
-        , "/* BOTONES estilo neón */"
-        , ".neon-btn {"
-        , "  padding:12px 24px; border-radius:12px;"
-        , "  background: transparent;"
-        , "  border: 2px solid #00ffff;"
-        , "  color: #00ffff;"
-        , "  font-family: 'Orbitron', sans-serif;"
-        , "  font-size: 16px;"
-        , "  cursor: pointer;"
-        , "  text-shadow: 0 0 5px #00ffff;"
-        , "  box-shadow: 0 0 15px #00ffff;"
-        , "  transition: all 0.2s ease;"
+        , "/* Estados de celda */"
+        , ".non-cell.unknown { background: rgba(26, 26, 26, 0.8); border-color: rgba(138, 43, 226, 0.5); }"
+        , ".non-cell.filled-correct {"
+        , "  background: rgba(138, 43, 226, 0.8);"
+        , "  border-color: #8a2be2;"
+        , "  color: #fff;"
+        , "  box-shadow: 0 0 20px rgba(138, 43, 226, 0.8), 0 0 40px rgba(138, 43, 226, 0.5);"
         , "}"
-        , ".neon-btn:hover { transform: translateY(-3px); box-shadow: 0 0 25px #00ffff, 0 0 40px #ff00ff; }"
-        , ".controls { display:flex; gap:15px; margin-top:30px; align-items: center; justify-content: center; }"
-        , ".game-reset-button { }"
-        , ".mode-button { width:60px; height:50px; position: relative; border-radius: 8px; }"
-        , ".fill-mode { background: #00ff00; border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }"
-        , ".fill-mode:hover { box-shadow: 0 0 25px #00ff00, 0 0 40px #00ff00; }"
-        , ".x-mode { background: #ff0000; border-color: #ff0000; box-shadow: 0 0 15px #ff0000; }"
-        , ".x-mode:hover { box-shadow: 0 0 25px #ff0000, 0 0 40px #ff0000; }"
+        , ".non-cell.marked-empty {"
+        , "  background: rgba(26, 26, 26, 0.8);"
+        , "  color: #ff6b9d;"
+        , "  border-color: #ff6b9d;"
+        , "  box-shadow: 0 0 20px rgba(255, 107, 157, 0.5), 0 0 30px rgba(255, 107, 157, 0.3);"
+        , "}"
+        , "/* BOTONES */"
+        , ".back-button, .game-reset-button, .mode-button {"
+        , "  background: linear-gradient(135deg, rgba(138, 43, 226, 0.2) 0%, rgba(75, 0, 130, 0.3) 100%);"
+        , "  border: 2px solid rgba(138, 43, 226, 0.5);"
+        , "  border-radius: 15px;"
+        , "  padding: 12px 24px;"
+        , "  color: #fff;"
+        , "  font-size: 1.1em;"
+        , "  font-weight: 600;"
+        , "  cursor: pointer;"
+        , "  transition: all 0.3s ease;"
+        , "  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);"
+        , "}"
+        , ".back-button:hover, .game-reset-button:hover, .mode-button:hover {"
+        , "  transform: translateY(-5px);"
+        , "  box-shadow: 0 15px 40px rgba(138, 43, 226, 0.4), 0 0 30px rgba(138, 43, 226, 0.3);"
+        , "  border-color: rgba(138, 43, 226, 0.8);"
+        , "}"
+        , ".controls { display: flex; gap: 15px; margin-top: 30px; align-items: center; justify-content: center; }"
+        , ".mode-button { width: 60px; height: 50px; position: relative; border-radius: 8px; text-align: center; }"
+        , ".fill-mode { background: linear-gradient(135deg, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.4) 100%); border-color: #8a2be2; box-shadow: 0 0 15px #8a2be2; }"
+        , ".fill-mode:hover { box-shadow: 0 0 25px #8a2be2, 0 0 40px #8a2be2; }"
+        , ".x-mode { background: linear-gradient(135deg, rgba(255, 107, 157, 0.3) 0%, rgba(255, 0, 130, 0.4) 100%); border-color: #ff6b9d; box-shadow: 0 0 15px #ff6b9d; }"
+        , ".x-mode:hover { box-shadow: 0 0 25px #ff6b9d, 0 0 40px #ff6b9d; }"
         , ".x-mode::after {"
         , "  content: 'X';"
         , "  position: absolute;"
@@ -406,32 +447,33 @@ addStyles window = do
         , "  left: 50%;"
         , "  transform: translate(-50%, -50%);"
         , "  font-size: 24px;"
-        , "  color: #ffffff;"
+        , "  color: #fff;"
         , "  font-weight: bold;"
         , "}"
-        , ".back-button { align-self:flex-start; margin-bottom:20px; }"
-        , ""
-        , "/* Selectors con estilo neon y texto visible */"
-        , ".header-controls { margin-bottom: 20px; display: flex; justify-content: center; }"
-        , ".header-controls select, .controls select {"
-        , "  padding:10px 15px; margin-right:15px; border-radius:8px;"
-        , "  background: #111111 !important; color:#00ffff !important;"
-        , "  border: 2px solid #00ffff !important;"
-        , "  font-family: 'Orbitron', sans-serif !important;"
+        , ".back-button { align-self: flex-start; margin-bottom: 20px; }"
+        , "/* Selectors */"
+        , ".header-controls { margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; }"
+        , ".header-controls select {"
+        , "  padding: 10px 15px;"
+        , "  border-radius: 8px;"
+        , "  background: rgba(255, 255, 255, 0.05) !important;"
+        , "  color: #fff !important;"
+        , "  border: 2px solid rgba(138, 43, 226, 0.5) !important;"
         , "  font-size: 14px !important;"
-        , "  box-shadow: 0 0 10px #00ffff !important;"
+        , "  box-shadow: 0 0 10px rgba(138, 43, 226, 0.3) !important;"
         , "  appearance: none !important;"
         , "  -webkit-appearance: none !important;"
         , "  -moz-appearance: none !important;"
         , "}"
-        , ".header-controls select option, .controls select option {"
-        , "  background: #000000 !important; color: #00ffff !important;"
+        , ".header-controls select option {"
+        , "  background: #0f0c29 !important;"
+        , "  color: #fff !important;"
         , "  padding: 10px !important;"
         , "}"
-        , ".header-controls select:focus, .controls select:focus {"
+        , ".header-controls select:focus {"
         , "  outline: none !important;"
-        , "  border-color: #ff00ff !important;"
-        , "  box-shadow: 0 0 20px #ff00ff !important;"
+        , "  border-color: rgba(138, 43, 226, 0.8) !important;"
+        , "  box-shadow: 0 0 20px rgba(138, 43, 226, 0.5) !important;"
         , "}"
         , "@media (max-width:520px) { "
         , "  .non-cell { width:40px; height:40px; font-size: 18px; } "
