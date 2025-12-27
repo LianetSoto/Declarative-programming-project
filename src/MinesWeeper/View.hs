@@ -30,7 +30,7 @@ minesweeperView window screenRef renderApp = do
 
   addStyles window
 
-  game0 <- liftIO $ initializeGame Beginner Nothing
+  game0 <- liftIO $ initializeGame Beginner (Just 10)
   state <- liftIO $ newIORef game0
   actionMode <- liftIO $ newIORef Reveal
 
@@ -62,6 +62,9 @@ minesweeperView window screenRef renderApp = do
     # set UI.text "Nuevo Juego"
     # set UI.class_ "game-reset-button"
 
+  difficultyButton <- UI.button
+    # set UI.text "Dificultad"
+    # set UI.class_ "game-reset-button"
 
   ------------------------------------------------
   -- Crear botones del tablero
@@ -141,11 +144,13 @@ minesweeperView window screenRef renderApp = do
     renderGame
 
   on UI.click newGameButton $ \_ -> do
-    gameNew <- liftIO $ initializeGame Beginner Nothing
+    gameNew <- liftIO $ initializeGame Beginner (Just 10)
     liftIO $ writeIORef state gameNew
     liftIO $ writeIORef actionMode Reveal
     renderGame
 
+  on UI.click difficultyButton $ \_ ->
+    showDifficultyDialog window state actionMode renderGame
 
   on UI.click backButton $ \_ -> do
     liftIO $ writeIORef screenRef Menu
@@ -170,6 +175,7 @@ minesweeperView window screenRef renderApp = do
   controlsRow <- UI.div # set UI.class_ "controls-row"
     #+ [ pure modeButton
        , pure newGameButton
+       , pure difficultyButton
        ]
 
   container <- UI.div # set UI.class_ "game-container"
@@ -183,6 +189,40 @@ minesweeperView window screenRef renderApp = do
 
   renderGame
   void $ getBody window #+ [pure container]
+
+--------------------------------------------------
+-- Cuadro de selección de dificultad
+--------------------------------------------------
+
+showDifficultyDialog :: Window -> IORef Game -> IORef ActionMode -> UI () -> UI ()
+showDifficultyDialog window state actionMode renderGame = do
+  easyBtn   <- UI.button # set UI.text "Fácil (10 minas)"   # set UI.class_ "close-button"
+  mediumBtn <- UI.button # set UI.text "Medio (15 minas)"   # set UI.class_ "close-button"
+  hardBtn   <- UI.button # set UI.text "Difícil (20 minas)" # set UI.class_ "close-button"
+  closeBtn  <- UI.button # set UI.text "Cerrar"             # set UI.class_ "close-button"
+
+  dialog <- UI.div # set UI.class_ "help-dialog"
+    #+ [ UI.h2 # set UI.text "Selecciona dificultad"
+       , pure easyBtn
+       , pure mediumBtn
+       , pure hardBtn
+       , pure closeBtn
+       ]
+
+  body <- getBody window
+  element body #+ [pure dialog]
+
+  let startWith mines = do
+        gameNew <- liftIO $ initializeGame Beginner (Just mines)
+        liftIO $ writeIORef state gameNew
+        liftIO $ writeIORef actionMode Reveal
+        renderGame
+        element dialog # set UI.style [("display", "none")]
+
+  on UI.click easyBtn   $ \_ -> startWith 10
+  on UI.click mediumBtn $ \_ -> startWith 15
+  on UI.click hardBtn   $ \_ -> startWith 20
+  on UI.click closeBtn  $ \_ -> element dialog # set UI.style [("display", "none")]
 
 --------------------------------------------------
 -- Estilos ajustados
@@ -237,7 +277,7 @@ addStyles window = do
         , "  margin-top: 10px;"
         , "  flex-wrap: nowrap;"
         , "}"
-        , ".game-mode-button, .game-reset-button, .game-help-button {"
+        , ".game-mode-button, .game-reset-button {"
         , "  background: linear-gradient(135deg, rgba(138,43,226,0.2), rgba(75,0,130,0.3));"
         , "  border: 2px solid rgba(138,43,226,0.5);"
         , "  color: white;"
@@ -301,6 +341,50 @@ addStyles window = do
         , ".mine-cell.flagged {"
         , "  background: rgba(255,215,0,0.4);"
         , "  color: #ffd700;"
+        , "}"
+
+        -- ⭐ CUADRO DE DIFICULTAD
+        , ".help-dialog {"
+        , "  position: fixed !important;"
+        , "  top: 50% !important;"
+        , "  left: 50% !important;"
+        , "  transform: translate(-50%, -50%) !important;"
+        , "  background: rgba(255,255,255,0.08) !important;"
+        , "  backdrop-filter: blur(12px) !important;"
+        , "  padding: 25px !important;"
+        , "  border-radius: 18px !important;"
+        , "  width: 80% !important;"
+        , "  max-width: 420px !important;"
+        , "  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(138,43,226,0.3) !important;"
+        , "  border: 1px solid rgba(255,255,255,0.15) !important;"
+        , "  color: white !important;"
+        , "  text-align: center !important;"
+        , "  z-index: 9999 !important;"
+        , "}"
+        , ".help-dialog h2 {"
+        , "  margin-bottom: 10px !important;"
+        , "  font-size: 1.6em !important;"
+        , "  text-shadow: 0 0 12px rgba(138,43,226,0.8) !important;"
+        , "}"
+        , ".help-dialog p {"
+        , "  margin: 8px 0 !important;"
+        , "  font-size: 1.05em !important;"
+        , "  opacity: 0.9 !important;"
+        , "}"
+        , ".close-button {"
+        , "  margin-top: 15px !important;"
+        , "  padding: 10px 20px !important;"
+        , "  background: linear-gradient(135deg, rgba(138,43,226,0.3), rgba(75,0,130,0.4)) !important;"
+        , "  border: 2px solid rgba(138,43,226,0.6) !important;"
+        , "  border-radius: 12px !important;"
+        , "  color: white !important;"
+        , "  font-size: 1em !important;"
+        , "  cursor: pointer !important;"
+        , "  transition: 0.3s !important;"
+        , "}"
+        , ".close-button:hover {"
+        , "  transform: translateY(-3px) !important;"
+        , "  box-shadow: 0 10px 30px rgba(138,43,226,0.4) !important;"
         , "}"
         ]
 

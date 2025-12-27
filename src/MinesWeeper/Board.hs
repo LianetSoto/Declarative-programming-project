@@ -30,7 +30,7 @@ generateMinePositions (rows, cols) numMines gen =
         go k acc g =
             let (idx, g') = randomR (0, maxIdx-1) g
             in if idx `elem` acc
-                then go k acc g'  -- Índice duplicado, intenta de nuevo
+                then go k acc g'
                 else go (k-1) (idx:acc) g'
 
 -- Calcular minas adyacentes para una posición
@@ -68,24 +68,25 @@ createBoardWithMines size@(rows, cols) minePositions =
                     then Cell Hidden (Number count) count
                     else Cell Hidden Empty 0
 
--- Inicializar un nuevo juego
+-- Inicializar un nuevo juego (CORREGIDO)
 initializeGame :: Difficulty -> Maybe Int -> IO Game
-initializeGame diff seed = do
-    let (size, mines) = case diff of
+initializeGame diff customMines = do
+    let (size, defaultMines) = case diff of
             Beginner     -> ((9, 9), 10)
             Intermediate -> ((16, 16), 40)
             Expert       -> ((16, 30), 99)
             Custom r c m -> ((r, c), m)
-    
-    -- Usar semilla si se proporciona, aleatorio si no
-    randomGen <- case seed of
-        Just s  -> return $ mkStdGen s
-        Nothing -> newStdGen
-    
-    let (minePositions, _) = 
-            generateMinePositions size mines randomGen
+
+        -- ⭐ Si customMines tiene un número → usarlo
+        mines = case customMines of
+            Just m  -> m
+            Nothing -> defaultMines
+
+    randomGen <- newStdGen
+
+    let (minePositions, _) = generateMinePositions size mines randomGen
         board = createBoardWithMines size minePositions
-    
+
     return $ Game
         { gameBoard = board
         , gameState = Playing
