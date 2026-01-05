@@ -204,4 +204,65 @@ menuView window screenRef render = do
     on UI.click btnMs  $ \_ -> liftIO (writeIORef screenRef Minesweeper) >> render
     on UI.click btnNg  $ \_ -> liftIO (writeIORef screenRef Nonogram) >> render
 
+    let helpText = unlines
+          [""
+          , "Tic Tac Toe:"
+          , "- Objetivo: consigue tres en raya (horizontal, vertical o diagonal)."
+          , "- Controles: haz clic en una casilla para colocar tu ficha cuando sea tu turno."
+          , "- Modo: pulsa 'Modo' para alternar Humano vs Humano y Humano vs Computadora."
+          , "- Si juegas contra la computadora, ésta mueve automáticamente (pequeña pausa)."
+          , "- 'Nuevo Juego' reinicia el tablero; '← Volver al Menú' regresa al menú principal."
+          , ""
+          , "Buscaminas:"
+          , "- Objetivo: descubre todas las casillas sin minas."
+          , "- Controles: usa el botón 'Modo' para cambiar entre 'Revelar' y 'Bandera'."
+          , "  En 'Revelar' un clic descubre la casilla; en 'Bandera' un clic coloca/quita una bandera."
+          , "- 'Nuevo Juego' genera un tablero nuevo; 'Dificultad' abre opciones (Fácil/Medio/Difícil)."
+          , "- Pista: el número en una casilla indica cuántas minas hay alrededor."
+          , ""
+          , "Nonograma:"
+          , "- Objetivo: rellena las celdas para reconstruir la imagen según las pistas de filas y columnas."
+          , "- Controles: pulsa el botón de modo para alternar 'Rellenar' y 'Marcar como vacío (X)'."
+          , "  Luego haz clic en una celda para aplicar la acción seleccionada."
+          , "- Usa los selectores para elegir dificultad y puzzle; 'Reiniciar' vuelve al estado inicial."
+          , "- '← Back' regresa al menú principal."
+          ]
+
+    on UI.click btnHelp $ \_ -> do
+      overlay <- UI.div # set UI.style
+        [ ("position","fixed")
+        , ("top","0")
+        , ("left","0")
+        , ("width","100%")
+        , ("height","100%")
+        , ("background","rgba(0,0,0,0.6)")
+        , ("display","flex")
+        , ("align-items","center")
+        , ("justify-content","center")
+        , ("z-index","9999")
+        ]
+      modal   <- UI.div # set UI.style
+        [ ("background","linear-gradient(180deg,#1b1b2f,#0f0f1a)")
+        , ("color","#fff")
+        , ("padding","24px")
+        , ("border-radius","12px")
+        , ("max-width","720px")
+        , ("width","90%")
+        , ("box-shadow","0 10px 30px rgba(0,0,0,0.7)")
+        , ("max-height","80vh")
+        , ("overflow","auto")
+        ]
+      titleEl <- UI.h2  # set UI.text "Ayuda - Haskell Mini Games" # set UI.style [("margin-top","0")]
+      content <- UI.pre # set UI.text helpText # set UI.style
+        [ ("white-space","pre-wrap")
+        , ("font-family","inherit")
+        , ("background","transparent")
+        , ("border","none")
+        ]
+      closeBtn <- UI.button # set UI.text "Cerrar" # set UI.class_ "help-button" # set UI.style [("margin-top","12px"), ("display","block"), ("margin-left","auto")]
+      element modal #+ map pure [titleEl, content, closeBtn]
+      element overlay #+ [pure modal]
+      element body #+ [pure overlay]
+      on UI.click closeBtn $ \_ -> delete overlay
+
     return ()
