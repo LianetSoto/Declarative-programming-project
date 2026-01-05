@@ -18,15 +18,11 @@ ticTacToeView :: Window -> IORef Screen -> UI () -> UI ()
 ticTacToeView window screenRef renderApp = do
   void $ return window # set title "Tic Tac Toe"
   
-  ---------------------------------------------------------
-  -- LIMPIAR BODY PRIMERO
-  ---------------------------------------------------------
+  -- LIMPIAR BODY
   body <- getBody window
   element body # set children []
   
-  ---------------------------------------------------------
   -- INSERTAR CSS
-  ---------------------------------------------------------
   let styles = unlines
         [ "* { margin: 0; padding: 0; box-sizing: border-box; }"
         , "body {"
@@ -154,9 +150,7 @@ ticTacToeView window screenRef renderApp = do
   -- Game state
   state <- liftIO $ newIORef initialState
 
-  ---------------------------------------------------------
   -- UI Elements (con clases CSS)
-  ---------------------------------------------------------
   title <- UI.h1
     # set UI.text "TIC TAC TOE"
     # set UI.class_ "game-title"
@@ -179,9 +173,7 @@ ticTacToeView window screenRef renderApp = do
     
   cells <- mapM (\_ -> UI.div # set UI.class_ "cell") [1..9]
 
-  ---------------------------------------------------------
   -- Game Rendering
-  ---------------------------------------------------------
   let renderGame :: UI ()
       renderGame = do
         gs <- liftIO $ readIORef state
@@ -223,9 +215,7 @@ ticTacToeView window screenRef renderApp = do
           liftIO $ modifyIORef state makeComputerMove
           renderGame
 
-  ---------------------------------------------------------
   -- Events
-  ---------------------------------------------------------
   mapM_ (\(i, cellDiv) ->
       on UI.click cellDiv $ \_ -> do
         gs <- liftIO $ readIORef state
@@ -253,9 +243,7 @@ ticTacToeView window screenRef renderApp = do
     liftIO $ writeIORef screenRef Menu
     renderApp
 
-  ---------------------------------------------------------
   -- Layout
-  ---------------------------------------------------------
   boardRows <- mapM (\i -> do
       let rowCells = take 3 (drop (i*3) cells)
       UI.div # set UI.class_ "board-row" #+ map pure rowCells
