@@ -19,30 +19,48 @@ isTerminal board =
     Just _ -> True
     Nothing -> null (emptyCells board)
 
--- Función de evaluación para Minimax
+-- Función de evaluación 
 evaluate :: Board -> Player -> Int
 evaluate board player =
   case checkWinner board of
     Just winnerPlayer 
-      | winnerPlayer == player -> 10
-      | otherwise -> -10
-    Nothing -> 0
+      | winnerPlayer == player -> 1000   -- Victoria para el jugador
+      | otherwise -> -1000               -- Victoria para el oponente
+    Nothing -> 0                         -- Empate
 
--- Algoritmo Minimax 
-minimax :: Board -> Int -> Bool -> Player -> Int
-minimax board depth isMaximizing player
+-- Algoritmo Minimax con poda Alpha-Beta
+minimax :: Board -> Int -> Int -> Int -> Bool -> Player -> Int
+minimax board depth alpha beta maximizingPlayer player
   | isTerminal board = evaluate board player
-  | isMaximizing = 
-      let moves = emptyCells board
-          scores = map (\idx -> 
-            minimax (placeMove board idx player) (depth + 1) False player) moves
-      in maximum scores 
-  | otherwise =  -- Minimizando
+  | maximizingPlayer =
+      let maxEval = -10000  -- -∞
+      in goMax (emptyCells board) maxEval alpha beta
+  | otherwise =
+      let minEval = 10000   -- +∞
+      in goMin (emptyCells board) minEval alpha beta
+  where
+    -- MAXIMIZING PLAYER
+    goMax [] best _ _ = best
+    goMax (idx:rest) best a b =
+      let newBoard = placeMove board idx player
+          eval = minimax newBoard (depth + 1) a b False player
+          best' = max best eval
+          a' = max a eval
+      in if b <= a'  
+         then best'   -- break
+         else goMax rest best' a' b
+    
+    -- MINIMIZING PLAYER
+    goMin [] best _ _ = best
+    goMin (idx:rest) best a b =
       let opponent = switchPlayer player
-          moves = emptyCells board
-          scores = map (\idx -> 
-            minimax (placeMove board idx opponent) (depth + 1) True player) moves
-      in minimum scores 
+          newBoard = placeMove board idx opponent
+          eval = minimax newBoard (depth + 1) a b True player
+          best' = min best eval
+          b' = min b eval
+      in if b' <= a 
+         then best'   -- break
+         else goMin rest best' a b'
 
 -- Función auxiliar para comparar tuplas por el primer elemento
 compareScore :: (Int, Int) -> (Int, Int) -> Ordering
@@ -56,7 +74,7 @@ maximumByScore xs = foldl1 selectBest xs
     selectBest (score1, idx1) (score2, idx2)
       | score1 > score2 = (score1, idx1)
       | score1 < score2 = (score2, idx2)
-      | otherwise = (score1, idx1) 
+      | otherwise = (score1, idx1)
 
 -- Encontrar el mejor movimiento usando Minimax
 findBestMove :: Board -> Player -> Maybe Int
@@ -66,9 +84,9 @@ findBestMove board player
   where
     availableMoves = emptyCells board
     
-    evaluateMove idx = 
+    evaluateMove idx =
       let newBoard = placeMove board idx player
-          score = minimax newBoard 0 False player  
+          score = minimax newBoard 0 (-10000) 10000 False player
       in (score, idx)
     
     evaluatedMoves = map evaluateMove availableMoves
