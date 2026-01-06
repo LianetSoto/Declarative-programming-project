@@ -24,7 +24,7 @@ Clona el repositorio y ejecuta con Cabal:
 git clone https://github.com/LianetSoto/Declarative-programming-project.git
 cd Declarative-programming-project
 
-# Con cabal
+Con cabal
 cabal v2-update
 cabal v2-build
 cabal v2-run
